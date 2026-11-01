@@ -49,7 +49,7 @@ All variables are optional. An unset or empty variable uses its default.
 
 Durations use Go syntax such as `500ms`, `5s` or `2m` and must be greater than
 zero. The default address listens on loopback only; binding to `0.0.0.0` exposes
-an unauthenticated service, so avoid it for now.
+an unauthenticated service, so we avoid it for now.
 
 ## Run on Windows (PowerShell)
 
