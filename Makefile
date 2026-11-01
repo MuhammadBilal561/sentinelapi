@@ -3,7 +3,11 @@
 
 BINARY := bin/sentinelapi
 
-.PHONY: all fmt fmt-check vet test race build run check
+.PHONY: all fmt fmt-check vet test race fuzz build run check
+
+# Fuzz the strict JSON parser for 30 seconds.
+fuzz:
+	go test -run '^$$' -fuzz FuzzParseStrict -fuzztime 30s ./internal/canonical
 
 all: check
 

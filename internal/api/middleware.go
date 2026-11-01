@@ -123,8 +123,8 @@ func Recover(logger *slog.Logger) func(http.Handler) http.Handler {
 				if s, ok := w.(interface{ Started() bool }); ok && s.Started() {
 					panic(http.ErrAbortHandler)
 				}
-				writeError(w, r, http.StatusInternalServerError,
-					"INTERNAL_ERROR", "An internal error occurred.")
+				writeCode(w, r, CodeInternalError)
+
 			}()
 			next.ServeHTTP(w, r)
 		})

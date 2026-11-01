@@ -1,0 +1,21 @@
+# Stable API error codes and their HTTP statuses.
+#
+# This file freezes the public error-code list. Codes are append-only:
+#   - Removing or renaming a code, or changing its status, is a breaking change
+#     and makes TestErrorCodesMatchGolden fail.
+#   - Adding a code also fails the test until a line is added here, so every
+#     new code is an intentional, reviewed change.
+#
+# Format: CODE HTTP_STATUS
+INTERNAL_ERROR 500
+INVALID_JSON 400
+INVALID_UTF8 400
+DUPLICATE_JSON_KEY 400
+JSON_TOO_DEEP 400
+JSON_LIMIT_EXCEEDED 400
+REQUEST_TOO_LARGE 413
+UNSUPPORTED_MEDIA_TYPE 415
+INVALID_REQUEST 400
+METHOD_NOT_ALLOWED 405
+NOT_FOUND 404
+NOT_IMPLEMENTED 501

@@ -1,4 +1,4 @@
-﻿# SentinelAPI
+# SentinelAPI
 
 SentinelAPI is intended to become an open-source security gateway for LLM
 agent tool calls, written in Go. An agent proposes a tool name and JSON
@@ -26,7 +26,7 @@ run. The model is never the authority that grants permission.
   checks plug in through `api.ReadinessCheck` in later milestones.
 - A server-generated `X-Request-ID` header (`req_` plus 16 hex characters) on
   every response. Client-supplied IDs are ignored.
-- Panic recovery that returns a generic `500`. The log records only a generic 
+- Panic recovery that returns a generic `500`. The log records only a generic
   event with the request ID and the panic's Go type, never the panic value or
   a stack trace, because either can contain sensitive data.
 - HTTP server timeouts, and graceful shutdown on Ctrl+C or SIGTERM.

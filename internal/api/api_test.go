@@ -137,8 +137,13 @@ func TestMethodAndPathRestrictions(t *testing.T) {
 	if rec := do(h, http.MethodPost, "/healthz"); rec.Code != http.StatusMethodNotAllowed {
 		t.Errorf("POST /healthz status = %d, want 405", rec.Code)
 	}
-	if rec := do(h, http.MethodGet, "/v1/tool-calls/evaluate"); rec.Code != http.StatusNotFound {
-		t.Errorf("unimplemented route status = %d, want 404", rec.Code)
+
+	// /v1/tool-calls/evaluate exists since M1 (POST only), so GET is a 405.
+	if rec := do(h, http.MethodGet, "/v1/tool-calls/evaluate"); rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("GET /v1/tool-calls/evaluate status = %d, want 405", rec.Code)
+	}
+	if rec := do(h, http.MethodGet, "/v1/does-not-exist"); rec.Code != http.StatusNotFound {
+		t.Errorf("unknown route status = %d, want 404", rec.Code)
 	}
 }
 
