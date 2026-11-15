@@ -1,7 +1,9 @@
 // Command sentinelapi runs the SentinelAPI HTTP service.
 //
-// Milestone M0: this is a runnable skeleton. It serves health endpoints only
-// and is not yet a security gateway.
+// Milestone M2: the service serves health endpoints and two parser-only
+// tool-call endpoints that validate requests against a startup-loaded tool
+// registry. It has no authentication, authorization, policy, approval or
+// execution yet and is not a security gateway: run it on loopback only.
 package main
 
 import (
@@ -18,6 +20,7 @@ import (
 
 	"github.com/MuhammadBilal561/sentinelapi/internal/api"
 	"github.com/MuhammadBilal561/sentinelapi/internal/config"
+	"github.com/MuhammadBilal561/sentinelapi/internal/registry"
 )
 
 const (
@@ -45,9 +48,20 @@ func run(ctx context.Context, lookup config.LookupFunc, stdout, stderr io.Writer
 
 	logger := slog.New(slog.NewJSONHandler(stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
 
+	// Load and compile the tool registry before anything listens. A registry
+	// that fails to load is never served, not even in part. The error is
+	// written for the operator and holds no request data.
+	reg, err := registry.Load(cfg.ToolRegistryPath)
+	if err != nil {
+		logger.Error("cannot load tool registry", "path", cfg.ToolRegistryPath, "error", err.Error())
+		return exitConfig
+	}
+	logger.Info("tool registry loaded", "path", cfg.ToolRegistryPath,
+		"registry_version", reg.Version(), "tools", reg.Len())
+
 	health := api.NewHealth(logger)
 	srv := &http.Server{
-		Handler:           api.NewHandler(api.Options{Logger: logger, Health: health}),
+		Handler:           api.NewHandler(api.Options{Logger: logger, Health: health, Registry: reg}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,

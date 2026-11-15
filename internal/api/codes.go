@@ -15,6 +15,8 @@ const (
 	CodeRequestTooLarge      = "REQUEST_TOO_LARGE"
 	CodeUnsupportedMediaType = "UNSUPPORTED_MEDIA_TYPE"
 	CodeInvalidRequest       = "INVALID_REQUEST"
+	CodeToolUnknown          = "TOOL_UNKNOWN"
+	CodeArgsSchemaInvalid    = "ARGS_SCHEMA_INVALID"
 	CodeMethodNotAllowed     = "METHOD_NOT_ALLOWED"
 	CodeNotFound             = "NOT_FOUND"
 	CodeNotImplemented       = "NOT_IMPLEMENTED"
@@ -39,6 +41,9 @@ type errorSpec struct {
 //   - 413 REQUEST_TOO_LARGE: body beyond the byte limit.
 //   - 415 UNSUPPORTED_MEDIA_TYPE: Content-Type is not application/json.
 //   - 400 INVALID_REQUEST: valid JSON whose envelope is wrong.
+//   - 404 TOOL_UNKNOWN: the envelope is valid but tool_name is not registered.
+//   - 400 ARGS_SCHEMA_INVALID: the tool is registered but its arguments do not
+//     satisfy the tool's JSON Schema.
 var errorSpecs = []errorSpec{
 	{CodeInternalError, http.StatusInternalServerError, "An internal error occurred."},
 	{CodeInvalidJSON, http.StatusBadRequest, "The request body is not valid JSON."},
@@ -49,6 +54,8 @@ var errorSpecs = []errorSpec{
 	{CodeRequestTooLarge, http.StatusRequestEntityTooLarge, "The request body is too large."},
 	{CodeUnsupportedMediaType, http.StatusUnsupportedMediaType, "Content-Type must be application/json."},
 	{CodeInvalidRequest, http.StatusBadRequest, "The request is invalid."},
+	{CodeToolUnknown, http.StatusNotFound, "The requested tool is not registered."},
+	{CodeArgsSchemaInvalid, http.StatusBadRequest, "The tool arguments do not satisfy the tool's schema."},
 	{CodeMethodNotAllowed, http.StatusMethodNotAllowed, "The method is not allowed for this endpoint."},
 	{CodeNotFound, http.StatusNotFound, "The requested resource was not found."},
 	{CodeNotImplemented, http.StatusNotImplemented, "Tool-call decisions are not implemented yet; this endpoint only validates the request."},

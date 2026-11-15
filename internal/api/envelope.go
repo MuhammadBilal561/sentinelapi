@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/MuhammadBilal561/sentinelapi/internal/canonical"
+	"github.com/MuhammadBilal561/sentinelapi/internal/registry"
 )
 
 // Request-envelope field names. These are the only field names the API ever
@@ -33,7 +34,6 @@ const (
 //	idempotency_key:   8-64 characters from the same set
 //	approval_id:       "apr_" followed by 16 lowercase hex digits
 const (
-	maxToolNameLen        = 64
 	maxClientRequestIDLen = 64
 	minIdempotencyKeyLen  = 8
 	maxIdempotencyKeyLen  = 64
@@ -124,32 +124,10 @@ func validateEnvelope(kind callKind, root any) (envelope, *envelopeError) {
 	return env, nil
 }
 
-// validToolName implements the tool_name rule documented above.
-func validToolName(s string) bool {
-	if len(s) == 0 || len(s) > maxToolNameLen {
-		return false
-	}
-	segmentStart := true
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case c == '.':
-			if segmentStart {
-				return false // leading dot or empty segment
-			}
-			segmentStart = true
-		case segmentStart:
-			if c < 'a' || c > 'z' {
-				return false
-			}
-			segmentStart = false
-		case c >= 'a' && c <= 'z', c >= '0' && c <= '9', c == '_':
-		default:
-			return false
-		}
-	}
-	return !segmentStart // must not end with a dot
-}
+// validToolName implements the tool_name rule documented above. The rule has
+// a single definition, in the registry package, so a name the envelope accepts
+// can be a registered tool name and the other way round.
+func validToolName(s string) bool { return registry.ValidToolName(s) }
 
 // validSafeID reports whether s has between min and max characters, all from
 // A-Z a-z 0-9 . - _ (so byte length equals character count).

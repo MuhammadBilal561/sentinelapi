@@ -60,7 +60,9 @@ func TestRunFailsWhenAddressInUse(t *testing.T) {
 	defer func() { firstCancel(); <-firstDone }()
 
 	var stdout, stderr syncBuffer
-	code := run(context.Background(), envLookup(map[string]string{"HTTP_ADDR": first}), &stdout, &stderr)
+	code := run(context.Background(), envLookup(map[string]string{
+		"HTTP_ADDR": first, "TOOL_REGISTRY_PATH": exampleRegistryPath(),
+	}), &stdout, &stderr)
 	if code != exitRuntime {
 		t.Fatalf("exit code = %d, want %d; logs: %s", code, exitRuntime, stdout.String())
 	}
@@ -175,8 +177,11 @@ func startServer(t *testing.T, addr string, shutdownTimeout time.Duration) (stri
 	out, errOut := &syncBuffer{}, &syncBuffer{}
 	done := make(chan int, 1)
 	go func() {
+		// The registry path is always set explicitly (and absolute), so the test
+		// does not depend on the working directory.
 		done <- run(ctx, envLookup(map[string]string{
 			"HTTP_ADDR": addr, "SHUTDOWN_TIMEOUT": shutdownTimeout.String(),
+			"TOOL_REGISTRY_PATH": exampleRegistryPath(),
 		}), out, errOut)
 	}()
 

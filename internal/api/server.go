@@ -5,6 +5,8 @@ package api
 import (
 	"log/slog"
 	"net/http"
+
+	"github.com/MuhammadBilal561/sentinelapi/internal/registry"
 )
 
 // Options configures NewHandler.
@@ -14,6 +16,10 @@ type Options struct {
 	// Health serves /healthz and /readyz. If nil, a Health that is never
 	// ready is used.
 	Health *Health
+	// Registry holds the registered tools and their argument schemas. It is
+	// immutable and safe for concurrent use. If nil, no tool is registered and
+	// every well-formed tool call is answered with TOOL_UNKNOWN.
+	Registry *registry.Registry
 }
 
 // NewHandler returns the service's root handler with routing and middleware.
@@ -22,9 +28,9 @@ type Options struct {
 // pattern. The mux prefers the specific pattern, so the fallback only sees
 // other methods and answers 405 in the JSON error format. The final "/"
 // catch-all answers unknown paths with a JSON 404.
+//
 // Middleware order, outermost first: request ID, access log, panic recovery.
 // Recovery sits inside the access log so a recovered panic is logged as a 500.
-
 func NewHandler(opts Options) http.Handler {
 	logger := opts.Logger
 	if logger == nil {
@@ -41,9 +47,9 @@ func NewHandler(opts Options) http.Handler {
 	mux.HandleFunc("GET /readyz", health.Readiness)
 	mux.HandleFunc("/readyz", methodNotAllowed("GET, HEAD"))
 
-	mux.HandleFunc("POST /v1/tool-calls/evaluate", toolCallHandler(kindEvaluate))
+	mux.HandleFunc("POST /v1/tool-calls/evaluate", toolCallHandler(kindEvaluate, opts.Registry, logger))
 	mux.HandleFunc("/v1/tool-calls/evaluate", methodNotAllowed("POST"))
-	mux.HandleFunc("POST /v1/tool-calls/execute", toolCallHandler(kindExecute))
+	mux.HandleFunc("POST /v1/tool-calls/execute", toolCallHandler(kindExecute, opts.Registry, logger))
 	mux.HandleFunc("/v1/tool-calls/execute", methodNotAllowed("POST"))
 
 	mux.HandleFunc("/", notFound)
@@ -53,7 +59,6 @@ func NewHandler(opts Options) http.Handler {
 	h = AccessLog(logger)(h)
 	h = RequestID(h)
 	return h
-
 }
 
 // methodNotAllowed answers 405 with an Allow header and the JSON error format.
