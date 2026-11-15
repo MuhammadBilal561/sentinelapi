@@ -27,6 +27,7 @@ func TestLoadDefaults(t *testing.T) {
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		ShutdownTimeout:   10 * time.Second,
+		ToolRegistryPath:  "examples/config/tools.json",
 	}
 	if got != want {
 		t.Fatalf("Load() = %+v, want %+v", got, want)
@@ -54,6 +55,7 @@ func TestLoadOverrides(t *testing.T) {
 		EnvWriteTimeout:      "3s",
 		EnvIdleTimeout:       "4m",
 		EnvShutdownTimeout:   "500ms",
+		EnvToolRegistryPath:  "/etc/sentinelapi/tools.json",
 	}))
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
@@ -66,6 +68,7 @@ func TestLoadOverrides(t *testing.T) {
 		WriteTimeout:      3 * time.Second,
 		IdleTimeout:       4 * time.Minute,
 		ShutdownTimeout:   500 * time.Millisecond,
+		ToolRegistryPath:  "/etc/sentinelapi/tools.json",
 	}
 	if got != want {
 		t.Fatalf("Load() = %+v, want %+v", got, want)

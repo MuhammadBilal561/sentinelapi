@@ -14,8 +14,8 @@ import (
 const (
 	evaluatePath = "/v1/tool-calls/evaluate"
 	executePath  = "/v1/tool-calls/execute"
-	validEval    = `{"tool_name":"orders.lookup","arguments":{"order_id":"ord_1042"}}`
-	validExec    = `{"tool_name":"payments.refund","arguments":{"amount_cents":12000},"idempotency_key":"run7731-step4"}`
+	validEval    = `{"tool_name":"orders.lookup","arguments":{"tenant_id":"t_acme","order_id":"ord_1042"}}`
+	validExec    = `{"tool_name":"payments.refund","arguments":{"tenant_id":"t_acme","order_id":"ord_1042","amount_cents":12000,"reason":"duplicate charge"},"idempotency_key":"run7731-step4"}`
 )
 
 // esc turns "~u" into a JSON "\u" introducer so escapes stay explicit in test
@@ -30,7 +30,7 @@ type result struct {
 func newToolHandler() http.Handler {
 	h := NewHealth(nil)
 	h.SetReady(true)
-	return NewHandler(Options{Health: h})
+	return NewHandler(Options{Health: h, Registry: testRegistry()})
 }
 
 func post(h http.Handler, path, contentType, body string) *httptest.ResponseRecorder {
@@ -94,13 +94,13 @@ func TestValidEnvelopesReturnNotImplemented(t *testing.T) {
 		{"evaluate minimal", evaluatePath, validEval},
 		{"execute minimal", executePath, validExec},
 		{"evaluate with optional ids", evaluatePath,
-			`{"tool_name":"orders.lookup","arguments":{},"client_request_id":"run-7731.step_4","approval_id":"apr_2c7d91e0a4b85f13"}`},
+			`{"tool_name":"orders.lookup","arguments":{"tenant_id":"t_acme","order_id":"ord_1042"},"client_request_id":"run-7731.step_4","approval_id":"apr_2c7d91e0a4b85f13"}`},
 		{"execute with optional ids", executePath,
-			`{"tool_name":"payments.refund","arguments":{"a":[1,2,{"b":null}]},"idempotency_key":"abcdefgh","client_request_id":"x","approval_id":"apr_0123456789abcdef"}`},
+			`{"tool_name":"payments.refund","arguments":{"tenant_id":"t_acme","order_id":"ord_1042","amount_cents":1,"reason":""},"idempotency_key":"abcdefgh","client_request_id":"x","approval_id":"apr_0123456789abcdef"}`},
 		{"empty arguments object", evaluatePath, `{"tool_name":"a","arguments":{}}`},
 		{"any argument value types", evaluatePath,
 			`{"tool_name":"a.b","arguments":{"s":"x","n":-1.5e3,"t":true,"f":false,"z":null,"arr":[1,"2"],"obj":{"k":"v"}}}`},
-		{"key order and whitespace", evaluatePath, "{ \"arguments\" : { } ,\n \"tool_name\" : \"orders.lookup\" }\n"},
+		{"key order and whitespace", evaluatePath, "{ \"arguments\" : { \"order_id\" : \"ord_1042\" , \"tenant_id\" : \"t_acme\" } ,\n \"tool_name\" : \"orders.lookup\" }\n"},
 		{"unicode in argument values", evaluatePath, `{"tool_name":"a","arguments":{"note":"héllo ~ud83d~ude00"}}`},
 		{"idempotency key at 64", executePath,
 			`{"tool_name":"a","arguments":{},"idempotency_key":"` + strings.Repeat("k", 64) + `"}`},

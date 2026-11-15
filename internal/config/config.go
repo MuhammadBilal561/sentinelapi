@@ -25,7 +25,18 @@ const (
 	EnvWriteTimeout      = "HTTP_WRITE_TIMEOUT"
 	EnvIdleTimeout       = "HTTP_IDLE_TIMEOUT"
 	EnvShutdownTimeout   = "SHUTDOWN_TIMEOUT"
+	EnvToolRegistryPath  = "TOOL_REGISTRY_PATH"
 )
+
+// DefaultToolRegistryPath is where the tool registry is read from when
+// TOOL_REGISTRY_PATH is not set. A relative path is resolved against the
+// process's working directory, so run the service from the repository root or
+// set an absolute path.
+const DefaultToolRegistryPath = "examples/config/tools.json"
+
+// maxPathLen bounds TOOL_REGISTRY_PATH. It is far above any real path and only
+// exists to refuse absurd values early.
+const maxPathLen = 4096
 
 // Config is the validated runtime configuration.
 type Config struct {
@@ -36,6 +47,9 @@ type Config struct {
 	WriteTimeout      time.Duration
 	IdleTimeout       time.Duration
 	ShutdownTimeout   time.Duration
+
+	// ToolRegistryPath is the tool registry JSON file loaded at startup.
+	ToolRegistryPath string
 }
 
 // LookupFunc looks up an environment variable, like os.LookupEnv.
@@ -51,6 +65,7 @@ func Defaults() Config {
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		ShutdownTimeout:   10 * time.Second,
+		ToolRegistryPath:  DefaultToolRegistryPath,
 	}
 }
 
@@ -76,6 +91,14 @@ func Load(lookup LookupFunc) (Config, error) {
 			errs = append(errs, fmt.Errorf("invalid %s %q: %w", EnvLogLevel, v, err))
 		} else {
 			cfg.LogLevel = level
+		}
+	}
+
+	if v, ok := value(lookup, EnvToolRegistryPath); ok {
+		if err := validatePath(v); err != nil {
+			errs = append(errs, fmt.Errorf("invalid %s %q: %w", EnvToolRegistryPath, truncate(v, 200), err))
+		} else {
+			cfg.ToolRegistryPath = v
 		}
 	}
 
@@ -116,6 +139,27 @@ func value(lookup LookupFunc, key string) (string, bool) {
 		return "", false
 	}
 	return v, true
+}
+
+// validatePath checks that a file path is plausible. It does not touch the
+// filesystem: whether the file exists and is a valid registry is decided when
+// the registry is loaded.
+func validatePath(v string) error {
+	if len(v) > maxPathLen {
+		return fmt.Errorf("must be at most %d bytes long", maxPathLen)
+	}
+	if strings.ContainsRune(v, 0) {
+		return errors.New("must not contain a NUL character")
+	}
+	return nil
+}
+
+// truncate shortens s for display in an error message.
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
 
 func parseLogLevel(v string) (slog.Level, error) {

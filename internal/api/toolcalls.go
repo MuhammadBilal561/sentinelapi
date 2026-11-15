@@ -3,27 +3,33 @@ package api
 import (
 	"errors"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"strings"
 
 	"github.com/MuhammadBilal561/sentinelapi/internal/canonical"
+	"github.com/MuhammadBilal561/sentinelapi/internal/registry"
 )
 
 // MaxRequestBodyBytes is the largest request body the tool-call endpoints
 // read, whitespace included. It equals the parser's default input limit.
 const MaxRequestBodyBytes = canonical.DefaultMaxInputBytes
 
-// toolCallHandler returns the parser-only handler for one tool-call endpoint.
+// toolCallHandler returns the handler for one tool-call endpoint.
 //
-// M1 scope: it establishes the input boundary and nothing else. It checks the
-// media type, bounds and reads the body, parses it strictly, validates the
-// request envelope, and then answers 501 NOT_IMPLEMENTED. It never
-// authenticates, authorizes, makes a decision or executes anything, and it
-// does not reach any package that could.
+// Scope (M2): it establishes the input boundary and checks requests against
+// the tool registry, and nothing else. It checks the media type, bounds and
+// reads the body, parses it strictly, validates the request envelope, looks up
+// the tool, validates the arguments against the tool's JSON Schema, and then
+// answers 501 NOT_IMPLEMENTED. It never authenticates, authorizes, makes a
+// decision or executes anything, and it does not reach any package that could.
+//
+// A nil registry behaves like an empty one: every well-formed request names an
+// unknown tool. The handler fails closed rather than skipping validation.
 //
 // There is no authentication yet: run it only on loopback.
-func toolCallHandler(kind callKind) http.HandlerFunc {
+func toolCallHandler(kind callKind, reg *registry.Registry, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1. Media type, before a single body byte is read.
 		if !isJSONContentType(r.Header.Values("Content-Type")) {
@@ -59,12 +65,38 @@ func toolCallHandler(kind callKind) http.HandlerFunc {
 		}
 
 		// 5. Envelope shape.
-		if _, bad := validateEnvelope(kind, root); bad != nil {
+		env, bad := validateEnvelope(kind, root)
+		if bad != nil {
 			writeCodeField(w, r, CodeInvalidRequest, bad.Field)
 			return
 		}
 
-		// 6. Structurally valid. Decisions are not implemented in M1.
+		// 6. The tool must be registered. The name has already passed the
+		// envelope's strict ASCII rule.
+		if !reg.Has(env.ToolName) {
+			writeCodeField(w, r, CodeToolUnknown, fieldToolName)
+			return
+		}
+
+		// 7. The arguments must satisfy the tool's JSON Schema. The error is
+		// opaque on purpose: nothing about the schema or the argument values
+		// goes into the response or the log.
+		if err := reg.ValidateArguments(env.ToolName, env.Arguments); err != nil {
+			switch {
+			case errors.Is(err, registry.ErrInvalidArguments):
+				writeCodeField(w, r, CodeArgsSchemaInvalid, fieldArguments)
+			case errors.Is(err, registry.ErrUnknownTool):
+				writeCodeField(w, r, CodeToolUnknown, fieldToolName)
+			default:
+				logger.Error("tool argument validation could not be performed",
+					"request_id", RequestIDFromContext(r.Context()), "error", err.Error())
+				writeCode(w, r, CodeInternalError)
+			}
+			return
+		}
+
+		// 8. Structurally valid and schema valid. Decisions are not implemented
+		// yet (M3), so nothing is approved, blocked or executed.
 		writeCode(w, r, CodeNotImplemented)
 	}
 }

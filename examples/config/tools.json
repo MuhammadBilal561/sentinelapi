@@ -1,0 +1,111 @@
+{
+  "registry_version": 1,
+  "tools": [
+    {
+      "name": "orders.lookup",
+      "version": 1,
+      "risk": "read",
+      "executor": "mock.orders",
+      "review_fields": ["order_id"],
+      "audit_fields": ["tenant_id", "order_id"],
+      "args_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "Look up one order. Both arguments are required; no others are accepted.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tenant_id", "order_id"],
+        "properties": {
+          "tenant_id": { "$ref": "#/$defs/tenantId" },
+          "order_id": { "$ref": "#/$defs/orderId" }
+        },
+        "$defs": {
+          "tenantId": {
+            "description": "Tenant identifier: t_ followed by 1-32 lowercase letters or digits.",
+            "type": "string",
+            "pattern": "^t_[a-z0-9]{1,32}$"
+          },
+          "orderId": {
+            "description": "Order identifier: ord_ followed by 1-12 digits.",
+            "type": "string",
+            "pattern": "^ord_[0-9]{1,12}$"
+          }
+        }
+      }
+    },
+    {
+      "name": "payments.refund",
+      "version": 1,
+      "risk": "write",
+      "executor": "mock.payments",
+      "review_fields": ["order_id", "amount_cents", "reason"],
+      "audit_fields": ["tenant_id", "order_id", "amount_cents"],
+      "args_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "Refund part or all of one order. All four arguments are required; no others are accepted.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tenant_id", "order_id", "amount_cents", "reason"],
+        "properties": {
+          "tenant_id": { "$ref": "#/$defs/tenantId" },
+          "order_id": { "$ref": "#/$defs/orderId" },
+          "amount_cents": {
+            "description": "Refund amount in cents: an integer from 1 to 1000000.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "reason": {
+            "description": "Free-text reason, at most 200 characters.",
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "$defs": {
+          "tenantId": {
+            "description": "Tenant identifier: t_ followed by 1-32 lowercase letters or digits.",
+            "type": "string",
+            "pattern": "^t_[a-z0-9]{1,32}$"
+          },
+          "orderId": {
+            "description": "Order identifier: ord_ followed by 1-12 digits.",
+            "type": "string",
+            "pattern": "^ord_[0-9]{1,12}$"
+          }
+        }
+      }
+    },
+    {
+      "name": "accounts.close",
+      "version": 1,
+      "risk": "write",
+      "executor": "mock.accounts",
+      "review_fields": ["account_id", "reason"],
+      "audit_fields": ["tenant_id", "account_id"],
+      "args_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "Close one customer account. All three arguments are required; no others are accepted. Registered in M2 although no agent may be authorized to call it until M3.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tenant_id", "account_id", "reason"],
+        "properties": {
+          "tenant_id": {
+            "description": "Tenant identifier: t_ followed by 1-32 lowercase letters or digits.",
+            "type": "string",
+            "pattern": "^t_[a-z0-9]{1,32}$"
+          },
+          "account_id": {
+            "description": "Account identifier: acct_ followed by 1-12 digits.",
+            "type": "string",
+            "pattern": "^acct_[0-9]{1,12}$"
+          },
+          "reason": {
+            "description": "Free-text reason for closing the account, 1 to 200 characters.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      }
+    }
+  ]
+}

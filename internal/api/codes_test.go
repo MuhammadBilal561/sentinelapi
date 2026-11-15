@@ -87,7 +87,7 @@ func TestRequiredErrorCodesExist(t *testing.T) {
 		"INVALID_JSON": 400, "INVALID_UTF8": 400, "DUPLICATE_JSON_KEY": 400, "JSON_TOO_DEEP": 400,
 		"JSON_LIMIT_EXCEEDED": 400, "REQUEST_TOO_LARGE": 413, "UNSUPPORTED_MEDIA_TYPE": 415,
 		"INVALID_REQUEST": 400, "METHOD_NOT_ALLOWED": 405, "NOT_FOUND": 404, "NOT_IMPLEMENTED": 501,
-		"INTERNAL_ERROR": 500,
+		"INTERNAL_ERROR": 500, "TOOL_UNKNOWN": 404, "ARGS_SCHEMA_INVALID": 400,
 	}
 	for code, status := range required {
 		spec, ok := errorSpecFor(code)
@@ -119,13 +119,20 @@ func TestErrorSpecsAreWellFormed(t *testing.T) {
 	}
 }
 
-// TestParserEndpointsReachNoDecisionOrExecutionCode guards the M1 promise that
-// these handlers only validate. The api package may import the standard
-// library and internal/canonical, and nothing else from this module, so it
-// cannot reach any authorization, policy, approval or executor package.
+// TestParserEndpointsReachNoDecisionOrExecutionCode guards the promise that
+// these handlers only validate. Non-test code in the api package may import the
+// standard library and exactly two packages of this module, internal/canonical
+// and internal/registry. It may not import any third-party package directly
+// (the JSON Schema library stays behind the registry), and no package whose
+// name suggests authorization, policy, approval, audit, storage, a gateway or
+// an executor, so it cannot reach a decision or an execution path.
 func TestParserEndpointsReachNoDecisionOrExecutionCode(t *testing.T) {
 	const module = "github.com/MuhammadBilal561/sentinelapi/"
-	allowed := map[string]bool{module + "internal/canonical": true}
+	allowed := map[string]bool{
+		module + "internal/canonical": true,
+		module + "internal/registry":  true,
+	}
+	banned := []string{"executor", "policy", "approval", "authz", "audit", "store", "gateway", "config"}
 
 	files, err := filepath.Glob("*.go")
 	if err != nil || len(files) == 0 {
@@ -143,11 +150,14 @@ func TestParserEndpointsReachNoDecisionOrExecutionCode(t *testing.T) {
 		for _, imp := range f.Imports {
 			path, _ := strconv.Unquote(imp.Path.Value)
 			if strings.HasPrefix(path, module) && !allowed[path] {
-				t.Errorf("%s imports %s; M1 handlers must not reach this package", name, path)
+				t.Errorf("%s imports %s; M2 handlers may only use internal/canonical and internal/registry", name, path)
 			}
-			for _, banned := range []string{"executor", "policy", "approval", "authz", "registry"} {
-				if strings.Contains(path, "/"+banned) {
-					t.Errorf("%s imports %s, which suggests a decision or execution path", name, path)
+			if !strings.HasPrefix(path, module) && strings.Contains(strings.SplitN(path, "/", 2)[0], ".") {
+				t.Errorf("%s imports third-party package %s; the api package may only import the standard library and this module", name, path)
+			}
+			for _, b := range banned {
+				if strings.Contains(path, "/"+b) {
+					t.Errorf("%s imports %s, which suggests a decision, storage or execution path", name, path)
 				}
 			}
 		}
